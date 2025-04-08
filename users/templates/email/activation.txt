@@ -1,0 +1,8 @@
+Hello,
+
+Welcome to WadiConnect!
+
+Please activate your account by visiting the following link:
+{{ protocol }}://{{ domain }}/{{ url }}
+
+Thank you for joining us!
