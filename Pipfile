@@ -9,6 +9,10 @@ djangorestframework = "*"
 djoser = "*"
 djangorestframework-simplejwt = "*"
 pillow = "*"
+python-dotenv = "*"
+drf-spectacular = "*"
+drf-nested-routers = "*"
+django-filter = "*"
 
 [dev-packages]
 
