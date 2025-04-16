@@ -18,7 +18,8 @@ from .serializers import (
     OrderStatusUpdateSerializer,
 )
 from users.models import SellerProfile
-
+from .permissions import CategoryPermission
+from django.db.models import Count
 
 class ProductViewSet(viewsets.ModelViewSet):
     """
@@ -75,12 +76,15 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class CategoryViewSet(viewsets.ModelViewSet):
     """
-    Handles Category CRUD (Admin only)
+    Category ViewSet:
+    - GET: Public
+    - POST: Sellers and Admins
+    - DELETE/PUT/PATCH: Admins only
     """
 
     queryset = Categories.objects.annotate(products_count=Count("products")).all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [CategoryPermission]
 
     def destroy(self, request, *args, **kwargs):
         """Prevent deletion of categories with products"""
@@ -91,7 +95,6 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_405_METHOD_NOT_ALLOWED,
             )
         return super().destroy(request, *args, **kwargs)
-
 
 class OrderViewSet(viewsets.ModelViewSet):
     """

@@ -22,11 +22,11 @@ from drf_spectacular.views import (
 )
 
 urlpatterns = [
-    path('', include('users.urls')),
-    path('store/', include('store.urls')),
     path("admin/", admin.site.urls),
-    path("auth/", include("djoser.urls")),
-    path("auth/", include("djoser.urls.jwt")),
+    path("auth/", include("users.urls")),  # custom register and otp endpoints
+    path("auth/", include("djoser.urls")),              # include all standard Djoser endpoints (registration, password reset, etc.)
+    path("auth/", include("djoser.urls.jwt")),      # JWT endpoints under a separate prefix
+    path('store/', include('store.urls')),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]

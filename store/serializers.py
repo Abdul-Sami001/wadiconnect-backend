@@ -10,7 +10,7 @@ from .models import (
     Review,
 )
 from users.models import SellerProfile
-
+from django.db.models import Avg
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:

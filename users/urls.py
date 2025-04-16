@@ -1,7 +1,11 @@
 from django.urls import path
-from .views import CustomerProfileView, SellerProfileView
+from .views import RegisterUserView, VerifyOTPView, ResendOTPView, UpgradeToSellerView, ProfileView
+
 
 urlpatterns = [
-    path('customers/profile/', CustomerProfileView.as_view(), name='customer-profile'),
-    path('sellers/profile/', SellerProfileView.as_view(), name='seller-profile'),
+    path("register/", RegisterUserView.as_view(), name="register"),
+    path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
+    path("resend-otp/", ResendOTPView.as_view(), name="resend-otp"),
+    path("upgrade-seller/", UpgradeToSellerView.as_view(), name="upgrade-seller"),
+    path("profile/", ProfileView.as_view(), name="profile"),
 ]
