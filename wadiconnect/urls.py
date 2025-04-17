@@ -28,5 +28,8 @@ urlpatterns = [
     path("auth/", include("djoser.urls.jwt")),      # JWT endpoints under a separate prefix
     path('store/', include('store.urls')),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    #     path('initiate-payment/', initiate_payment, name='initiate-payment'),
+    # path('payment-callback/', payment_callback, name='payment-callback'),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    
 ]

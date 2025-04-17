@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "django_filters",
     "corsheaders",  # For handling CORS
     "users",
+    # 'payments.apps.PaymentsConfig',  # Custom payments app
     "store",
 ]
 
@@ -142,6 +143,38 @@ DJOSER = {
         'site_name': 'WadiConnect',
     },
 }
+
+
+# FASTPAY_CONFIG = {
+#     "BASE_URL": os.getenv("FASTPAY_BASE_URL"),
+#     "MERCHANT_ID": os.getenv("FASTPAY_MERCHANT_ID"),
+#     "SECURED_KEY": os.getenv("FASTPAY_SECURED_KEY"),
+# }
+# Security
+# CSRF_TRUSTED_ORIGINS = [
+#     'https://yourdomain.com',
+#     'https://*.fastpay.example.com'
+# ]
+
+
+# LOGGING = {
+#     'version': 1,
+#     'disable_existing_loggers': False,
+#     'handlers': {
+#         'file': {
+#             'level': 'DEBUG',
+#             'class': 'logging.FileHandler',
+#             'filename': 'fastpay.log',
+#         },
+#     },
+#     'loggers': {
+#         'payments': {
+#             'handlers': ['file'],
+#             'level': 'INFO',
+#             'propagate': True,
+#         },
+#     },
+# }
 
 # Email Configuration for Account Activation and Password Reset
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
