@@ -66,12 +66,12 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware
 ]
 
-CORS_ALLOW__ALL_ORIGINS = True
-
+# CORS settings added for testing Apis
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for development
 CORS_ALLOWED_ORIGINS = [
     "http://localhost",
     "http://10.0.2.2",
-    "http:localhost:3000",
+    "http://localhost:3000",
     "http://127.0.0.1",
     "http://127.0.0.1:3000",
 ]
