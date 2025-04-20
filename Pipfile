@@ -13,8 +13,9 @@ python-dotenv = "*"
 drf-spectacular = "*"
 drf-nested-routers = "*"
 django-filter = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.11"
+python_version = "3.12"
