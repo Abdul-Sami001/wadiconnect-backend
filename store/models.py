@@ -103,7 +103,9 @@ class OrderItem(models.Model):
 class Cart(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    customer = models.ForeignKey(
+        CustomerProfile, on_delete=models.CASCADE, null=True, blank=True, related_name="carts"
+    )
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")

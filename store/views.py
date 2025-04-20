@@ -17,10 +17,10 @@ from .serializers import (
     SellerProductSerializer,
     OrderStatusUpdateSerializer,
 )
-from users.models import SellerProfile
+from users.models import SellerProfile, CustomerProfile
 from .permissions import CategoryPermission
 from django.db.models import Count
-
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 class ProductViewSet(viewsets.ModelViewSet):
     """
     Handles Product CRUD operations with vendor-specific restrictions
@@ -163,7 +163,62 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+    
+    @extend_schema(
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "product_id": {"type": "integer", "example": 1},
+                "quantity": {"type": "integer", "example": 1},
+                "delivery_address": {"type": "string", "example": "123 Street, City, Country"},
+            },
+            "required": ["product_id", "delivery_address"]
+        }
+    },
+    responses={201: OrderSerializer},
+    summary="Buy Now - Direct product order",
+    description="Allows a customer to place an order for a single product directly without using the cart."
+)
+ 
+    @action(detail=False, methods=["POST"], url_path="buy-now")
+    def buy_now(self, request):
+        """
+        Direct product purchase (Buy Now button)
+        """
+        user = request.user
 
+        if not hasattr(user, "customer_profile"):
+            return Response({"error": "Only customers can place orders"}, status=403)
+
+        product_id = request.data.get("product_id")
+        quantity = int(request.data.get("quantity", 1))
+        delivery_address = request.data.get("delivery_address")
+
+        if not product_id or not delivery_address:
+            return Response({"error": "product_id and delivery_address are required"}, status=400)
+
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
+
+        # Create order
+        order = Order.objects.create(
+            customer=user.customer_profile,
+            delivery_address=delivery_address,
+        )
+
+        # Create order item
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            quantity=quantity,
+            unit_price=product.unit_price,
+        )
+
+        serializer = self.get_serializer(order)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class ReviewViewSet(viewsets.ModelViewSet):
     """
@@ -209,6 +264,17 @@ class CartViewSet(
     queryset = Cart.objects.prefetch_related("items__product").all()
     serializer_class = CartSerializer
 
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.is_authenticated:
+            try:
+                customer = CustomerProfile.objects.get(user=user)
+                serializer.save(customer=customer)
+            except CustomerProfile.DoesNotExist:
+                raise ValidationError("Customer profile not found for this user.")
+        else:
+            serializer.save()  # Allow guest cart (optional)
 
 class CartItemViewSet(viewsets.ModelViewSet):
     """

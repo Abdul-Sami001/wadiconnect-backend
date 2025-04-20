@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import CustomUser, EmailOTP, CustomerProfile, SellerProfile
-from .serializers import RegisterUserSerializer, OTPVerifySerializer, ResendOTPSerializer, SellerProfileSerializer
+from .serializers import RegisterUserSerializer, OTPVerifySerializer, ResendOTPSerializer, SellerProfileSerializer, CustomerProfileSerializer
 from .utils import send_otp_to_email
 from rest_framework import generics
 

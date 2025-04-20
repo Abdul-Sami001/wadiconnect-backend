@@ -139,29 +139,39 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
+    product_id = serializers.IntegerField(write_only=True)
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
-        fields = ["id", "product", "quantity", "total_price"]
-        read_only_fields = ["id", "total_price"]
+        fields = ['id', 'product', 'product_id', 'quantity', 'total_price']
+        read_only_fields = ['id', 'product', 'total_price']
 
     def get_total_price(self, obj):
         return obj.quantity * obj.product.unit_price
 
+    def create(self, validated_data):
+        cart_id = self.context.get('cart_id')
+        if not cart_id:
+            raise serializers.ValidationError("Cart ID is required")
 
+        return CartItem.objects.create(
+            cart_id=cart_id,
+            product_id=validated_data['product_id'],
+            quantity=validated_data['quantity']
+        )
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
     total = serializers.SerializerMethodField()
-
+    # Optional: Display who owns the cart (for admins maybe)
+    customer = serializers.PrimaryKeyRelatedField(read_only=True)
     class Meta:
         model = Cart
-        fields = ["id", "created_at", "items", "total"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "created_at", "items", "total", "customer"]
+        read_only_fields = ["id", "created_at", "total"]
 
     def get_total(self, obj):
         return sum(item.quantity * item.product.unit_price for item in obj.items.all())
-
 
 class SellerProductSerializer(serializers.ModelSerializer):
     """Variant for seller dashboard with extended fields"""
