@@ -5,6 +5,7 @@ from django.conf import settings
 from uuid import uuid4
 from users.models import CustomerProfile
 from django.utils.text import slugify
+from django.db.models import Avg 
 
 
 
@@ -131,4 +132,25 @@ class Review(models.Model):
     date = models.DateField(auto_now_add=True)  # Date when the review was created
 
     def __str__(self):
-        return f"{self.name} - {self.rating} Stars"
+        return f"{self.user.email} - {self.rating} Stars"
+    def save(self, *args, **kwargs):
+        """Update vendor rating on save"""
+        super().save(*args, **kwargs)
+        self.update_vendor_rating()
+
+    def delete(self, *args, **kwargs):
+        """Update vendor rating on delete"""
+        vendor = self.product.vendor
+        super().delete(*args, **kwargs)
+        self.update_vendor_rating(vendor)
+
+    def update_vendor_rating(self, vendor=None):
+        """Recalculate average for all vendor products"""
+        vendor = vendor or self.product.vendor
+        all_reviews = Review.objects.filter(
+            product__vendor=vendor, 
+            rating__isnull=False
+        )
+        avg_rating = all_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
+        vendor.average_rating = round(avg_rating, 2)
+        vendor.save()

@@ -21,6 +21,21 @@ from users.models import SellerProfile, CustomerProfile
 from .permissions import CategoryPermission
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+from users.serializers import SellerProfileSerializer
+
+
+class SellerProfileViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    API endpoint to list verified sellers with their profile information and ratings.
+    """
+    queryset = SellerProfile.objects.filter(verification_status=SellerProfile.VERIFIED).select_related('user')
+    serializer_class = SellerProfileSerializer
+    permission_classes = []  # Public access
+
+    # Optional: Enable filtering, searching, and ordering
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['business_name', 'user__email']
+    ordering_fields = ['average_rating', 'created_at']
 class ProductViewSet(viewsets.ModelViewSet):
     """
     Handles Product CRUD operations with vendor-specific restrictions
@@ -240,15 +255,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         return queryset.none()
 
-    def perform_create(self, serializer):
-        """Auto-assign user and update product ratings"""
-        product = serializer.validated_data["product"]
-        serializer.save(user=self.request.user)
+    # def perform_create(self, serializer):
+    #     """Auto-assign user and update product ratings"""
+    #     product = serializer.validated_data["product"]
+    #     serializer.save(user=self.request.user)
 
-        # Update product rating stats
-        avg_rating = product.reviews.aggregate(Avg("rating"))["rating__avg"]
-        product.vendor.average_rating = avg_rating or 0
-        product.vendor.save()
+    #     # Update product rating stats
+    #     avg_rating = product.reviews.aggregate(Avg("rating"))["rating__avg"]
+    #     product.vendor.average_rating = avg_rating or 0
+    #     product.vendor.save()
 
 
 class CartViewSet(
