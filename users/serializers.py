@@ -70,6 +70,7 @@ class SellerProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "business_name",
+             "average_rating", 
             "profile_picture",
             "business_address",
             "phone",
@@ -79,6 +80,7 @@ class SellerProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "average_rating",
             "verification_status",
             "created_at",
             "updated_at",

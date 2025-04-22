@@ -31,6 +31,11 @@ urlpatterns = [
         views.ProductViewSet.as_view({"get": "seller_products"}),
         name="seller-products",
     ),
+    path(
+        "seller-profile/",
+        views.SellerProfileViewSet.as_view({"get": "list"}),
+        name="seller-profile",
+    ),
 ]
 
 # For Swagger/OpenAPI documentation
