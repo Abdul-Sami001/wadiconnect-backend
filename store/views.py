@@ -183,8 +183,13 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     # Clear the cart
         cart.delete()
+        
+        # Return the full order using OrderSerializer
+        full_order_serializer = OrderSerializer(order)
+        
+        
 
-        return Response(order_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(full_order_serializer.data, status=status.HTTP_201_CREATED)
     @action(
         detail=True, methods=["PATCH"], serializer_class=OrderStatusUpdateSerializer
     )
