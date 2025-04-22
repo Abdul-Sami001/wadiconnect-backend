@@ -20,7 +20,7 @@ from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
-
+from django.conf.urls.static import static
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("auth/", include("users.urls")),  # custom register and otp endpoints
@@ -30,3 +30,7 @@ urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
 ]
+
+# 👇 This will serve media files during development (when DEBUG = True)
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
