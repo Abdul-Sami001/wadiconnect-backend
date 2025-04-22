@@ -16,6 +16,7 @@ from .serializers import (
     ReviewSerializer,
     SellerProductSerializer,
     OrderStatusUpdateSerializer,
+    CreateOrderSerializer,
 )
 from users.models import SellerProfile, CustomerProfile
 from .permissions import CategoryPermission
@@ -96,6 +97,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
+
 class OrderViewSet(viewsets.ModelViewSet):
     """
     Handles Order lifecycle with role-based access
@@ -118,41 +120,56 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return queryset.none()
 
+    @extend_schema(
+    request=CreateOrderSerializer,
+    responses=OrderSerializer,
+    summary="Place order from cart",
+    description="Places an order based on the provided cart_id and delivery address."
+)
     def create(self, request, *args, **kwargs):
         """Convert cart to order"""
-        cart = Cart.objects.prefetch_related("items__product").get(
-            pk=request.data.get("cart_id")
-        )
+        cart_id = request.data.get("cart_id")
+        if not cart_id:
+            return Response({"error": "cart_id is required"}, status=400)
+
+        try:
+            cart = Cart.objects.prefetch_related("items__product").get(pk=cart_id)
+        except Cart.DoesNotExist:
+            return Response({"error": "Cart not found"}, status=404)
 
         if not cart.items.exists():
             return Response({"error": "Cart is empty"}, status=400)
 
+    # Prepare order data with delivery address only
         order_data = {
-            "customer": request.user.customer_profile,
-            "delivery_address": request.data.get("delivery_address"),
+        "delivery_address": request.data.get("delivery_address")
         }
 
-        order_serializer = self.get_serializer(data=order_data)
+    # Pass request context to the serializer
+        order_serializer = CreateOrderSerializer(
+            data=order_data,
+            context={'request': request}
+        )
+    
         order_serializer.is_valid(raise_exception=True)
-        order = order_serializer.save()
+        order = order_serializer.save()  # Customer is set in serializer's create method
 
-        # Convert cart items to order items
-        order_items = []
-        for cart_item in cart.items.all():
-            order_items.append(
-                OrderItem(
-                    order=order,
-                    product=cart_item.product,
-                    quantity=cart_item.quantity,
-                    unit_price=cart_item.product.unit_price,
-                )
+    # Convert cart items to order items
+        order_items = [
+            OrderItem(
+                order=order,
+                product=cart_item.product,
+                quantity=cart_item.quantity,
+                unit_price=cart_item.product.unit_price,
             )
-
+            for cart_item in cart.items.all()
+        ]
         OrderItem.objects.bulk_create(order_items)
-        cart.delete()  # Clear the cart
+
+    # Clear the cart
+        cart.delete()
 
         return Response(order_serializer.data, status=status.HTTP_201_CREATED)
-
     @action(
         detail=True, methods=["PATCH"], serializer_class=OrderStatusUpdateSerializer
     )

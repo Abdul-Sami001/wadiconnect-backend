@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from uuid import UUID
 from .models import (
     Categories,
     Product,
@@ -84,7 +85,19 @@ class ReviewSerializer(serializers.ModelSerializer):
         validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
 
+class CreateOrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['delivery_address']
 
+    def create(self, validated_data):
+        # Automatically set the customer from the request's user
+        request = self.context.get('request')
+        if request and hasattr(request.user, 'customer_profile'):
+            validated_data['customer'] = request.user.customer_profile
+            return super().create(validated_data)
+        else:
+            raise serializers.ValidationError("Customer profile not found.")
 class OrderItemSerializer(serializers.ModelSerializer):
     product_title = serializers.CharField(source="product.title", read_only=True)
     unit_price = serializers.DecimalField(
