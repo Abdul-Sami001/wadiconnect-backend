@@ -154,3 +154,23 @@ class Review(models.Model):
         avg_rating = all_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
         vendor.average_rating = round(avg_rating, 2)
         vendor.save()
+
+class FavouriteProduct(models.Model):
+    customer = models.ForeignKey(
+        CustomerProfile,
+        on_delete=models.CASCADE,
+        related_name="favourite_products"
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="favourited_by"
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("customer", "product")
+        ordering = ["-added_at"]
+
+    def __str__(self):
+        return f"{self.customer.user.email} favourited {self.product.title}"

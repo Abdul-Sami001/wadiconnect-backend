@@ -9,7 +9,8 @@ router.register("products", views.ProductViewSet, basename="products")
 router.register("categories", views.CategoryViewSet, basename="categories")
 router.register("orders", views.OrderViewSet, basename="orders")
 router.register("carts", views.CartViewSet, basename="carts")
-router.register("reviews", views.ReviewViewSet, basename="reviews")
+#router.register("reviews", views.ReviewViewSet, basename="reviews")
+router.register(r"favourites", views.FavouriteProductViewSet, basename="favourites")
 
 # Nested router for cart items
 cart_router = routers.NestedSimpleRouter(router, r"carts", lookup="cart")
@@ -35,6 +36,11 @@ urlpatterns = [
         "seller-profile/",
         views.SellerProfileViewSet.as_view({"get": "list"}),
         name="seller-profile",
+    ),
+     path(
+        "reviews/vendor/<int:vendor_id>/",
+        views.ReviewViewSet.as_view({"get": "vendor_reviews"}),
+        name="vendor-reviews",
     ),
 ]
 

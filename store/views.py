@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Avg, Count
-from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review
+from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct
 from .serializers import (
     ProductSerializer,
     CategorySerializer,
@@ -17,6 +17,7 @@ from .serializers import (
     SellerProductSerializer,
     OrderStatusUpdateSerializer,
     CreateOrderSerializer,
+    FavouriteProductSerializer,
 )
 from users.models import SellerProfile, CustomerProfile
 from .permissions import CategoryPermission
@@ -276,6 +277,17 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return queryset.filter(user=self.request.user)
 
         return queryset.none()
+    
+    @action(detail=False, methods=["get"], url_path="vendor/(?P<vendor_id>[^/.]+)")
+    def vendor_reviews(self, request, vendor_id=None):
+        try:
+            vendor = SellerProfile.objects.get(pk=vendor_id)
+        except SellerProfile.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=404)
+
+        reviews = Review.objects.filter(product__vendor=vendor)
+        serializer = self.get_serializer(reviews, many=True)
+        return Response(serializer.data)
 
     # def perform_create(self, serializer):
     #     """Auto-assign user and update product ratings"""
@@ -344,3 +356,35 @@ class CartItemViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except CartItem.DoesNotExist:
             return super().create(request, *args, **kwargs)
+
+
+class FavouriteProductViewSet(viewsets.ModelViewSet):
+    serializer_class = FavouriteProductSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FavouriteProduct.objects.filter(customer=self.request.user.customer_profile)
+
+    def create(self, request, *args, **kwargs):
+        customer = request.user.customer_profile
+        product_id = request.data.get("product")
+
+        if not product_id:
+            return Response({"error": "Product ID is required"}, status=400)
+
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
+
+        fav, created = FavouriteProduct.objects.get_or_create(customer=customer, product=product)
+        if not created:
+            return Response({"message": "Product already in favourites"}, status=200)
+
+        serializer = self.get_serializer(fav)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        fav = self.get_object()
+        fav.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -90,6 +90,8 @@ class SellerProfile(models.Model):
         related_name="seller_profile",
     )
     business_name = models.CharField(max_length=100)
+    business_description = models.TextField(blank=True, null=True)
+    opening_closing_time = models.CharField(max_length=255, blank=True, null=True)  # E.g. "9 AM - 5 PM"
     profile_picture = models.ImageField(
         upload_to="profile_pictures/", blank=True, null=True
     )

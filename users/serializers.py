@@ -73,6 +73,8 @@ class SellerProfileSerializer(serializers.ModelSerializer):
              "average_rating", 
             "profile_picture",
             "business_address",
+            "business_description",
+            "opening_closing_time",
             "phone",
             "verification_status",
             "created_at",

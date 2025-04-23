@@ -9,6 +9,7 @@ from .models import (
     Cart,
     CartItem,
     Review,
+    FavouriteProduct,
 )
 from users.models import SellerProfile
 from django.db.models import Avg
@@ -212,3 +213,11 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
             "payment_status": {"required": False},
             "delivery_status": {"required": False},
         }
+
+
+class FavouriteProductSerializer(serializers.ModelSerializer):
+    product_title = serializers.ReadOnlyField(source="product.title")
+
+    class Meta:
+        model = FavouriteProduct
+        fields = ["id", "product", "product_title", "added_at"]
