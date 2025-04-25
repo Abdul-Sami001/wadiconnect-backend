@@ -61,7 +61,7 @@ class ResendOTPSerializer(serializers.Serializer):
 class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
-        fields = ["id", "name", "phone", "address", "created_at", "updated_at"]
+        fields = ["id", "name", "phone", "address", "profile_picture", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]        
 
 class SellerProfileSerializer(serializers.ModelSerializer):

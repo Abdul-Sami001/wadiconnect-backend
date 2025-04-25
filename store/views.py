@@ -24,6 +24,7 @@ from .permissions import CategoryPermission
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from users.serializers import SellerProfileSerializer
+from notifications.utils import notify_user
 
 
 class SellerProfileViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -388,3 +389,4 @@ class FavouriteProductViewSet(viewsets.ModelViewSet):
         fav = self.get_object()
         fav.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+   

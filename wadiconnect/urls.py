@@ -30,6 +30,7 @@ urlpatterns = [
     path('store/', include('store.urls')),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    path('api/notifications/', include('notifications.urls')),
 ]
 
 # 👇 This will serve media files during development (when DEBUG = True)

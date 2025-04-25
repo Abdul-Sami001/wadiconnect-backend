@@ -6,6 +6,7 @@ from .models import CustomUser, EmailOTP, CustomerProfile, SellerProfile
 from .serializers import RegisterUserSerializer, OTPVerifySerializer, ResendOTPSerializer, SellerProfileSerializer, CustomerProfileSerializer
 from .utils import send_otp_to_email
 from rest_framework import generics
+from rest_framework.parsers import MultiPartParser, FormParser
 
 # 1. Registration view: Create user and send OTP
 class RegisterUserView(APIView):
@@ -108,19 +109,34 @@ class UpgradeToSellerView(APIView):
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_serializer_class(self):
-        # Determine the serializer based on the user's role.
         if self.request.user.role == CustomUser.SELLER:
             return SellerProfileSerializer
-        else:
-            return CustomerProfileSerializer
+        return CustomerProfileSerializer
 
     def get_object(self):
-        # Retrieve the user's profile based on role.
-        if self.request.user.role == CustomUser.SELLER:
-            # It will raise a DoesNotExist if SellerProfile hasn't been created. Consider handling that.
-            return self.request.user.seller_profile
+        user = self.request.user
+        profile = None
+        
+        if user.role == CustomUser.SELLER:
+            profile, _ = SellerProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    "business_name": "",
+                    "business_address": "",
+                    "phone": "",
+                    "verification_status": SellerProfile.PENDING
+                }
+            )
         else:
-            # For CustomerProfile, it's assumed that it was auto-created after OTP verification.
-            return self.request.user.customer_profile
+            profile, _ = CustomerProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    "name": "",
+                    "address": "",
+                    "phone": ""
+                }
+            )
+        return profile

@@ -6,6 +6,7 @@ from uuid import uuid4
 from users.models import CustomerProfile
 from django.utils.text import slugify
 from django.db.models import Avg 
+from notifications.utils import notify_user
 
 
 
@@ -174,3 +175,22 @@ class FavouriteProduct(models.Model):
 
     def __str__(self):
         return f"{self.customer.user.email} favourited {self.product.title}"
+# class Order(models.Model):
+#     def save(self, *args, **kwargs):
+#         created = not self.pk
+#         super().save(*args, **kwargs)
+        
+#         if created:
+#             notify_user(
+#                 self.customer.user,
+#                 f"New order #{self.id} placed!",
+#                 'order_status',
+#                 {'order_id': self.id}
+#             )
+#         elif self.delivery_status == 'DELIVERED':
+#             notify_user(
+#                 self.customer.user,
+#                 f"Your order #{self.id} has been delivered!",
+#                 'order_status',
+#                 {'order_id': self.id}
+#             )
