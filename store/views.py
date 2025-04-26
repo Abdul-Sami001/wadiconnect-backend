@@ -1,11 +1,11 @@
-from rest_framework import viewsets, mixins, status
+from rest_framework import viewsets, mixins, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Avg, Count
-from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct
+from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct, Feedback
 from .serializers import (
     ProductSerializer,
     CategorySerializer,
@@ -18,6 +18,7 @@ from .serializers import (
     OrderStatusUpdateSerializer,
     CreateOrderSerializer,
     FavouriteProductSerializer,
+    FeedbackSerializer,
 )
 from users.models import SellerProfile, CustomerProfile
 from .permissions import CategoryPermission
@@ -39,6 +40,9 @@ class SellerProfileViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['business_name', 'user__email']
     ordering_fields = ['average_rating', 'created_at']
+    
+    
+@extend_schema(tags=["Products API's"])
 class ProductViewSet(viewsets.ModelViewSet):
     """
     Handles Product CRUD operations with vendor-specific restrictions
@@ -91,7 +95,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = SellerProductSerializer(queryset, many=True)
         return Response(serializer.data)
 
-
+@extend_schema(tags=["Category APi's"])
 class CategoryViewSet(viewsets.ModelViewSet):
     """
     Category ViewSet:
@@ -259,6 +263,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+@extend_schema(tags=["Reviews API's"])
 class ReviewViewSet(viewsets.ModelViewSet):
     """
     Handles Product Reviews with auto-user assignment
@@ -359,6 +364,14 @@ class CartItemViewSet(viewsets.ModelViewSet):
             return super().create(request, *args, **kwargs)
 
 
+
+@extend_schema(
+    tags=["Favourite Products"],
+    responses={
+        200: FavouriteProductSerializer,
+    },
+    description="Retrieve, add, or remove favourite products. Includes product title, price, and vendor business name."
+)
 class FavouriteProductViewSet(viewsets.ModelViewSet):
     serializer_class = FavouriteProductSerializer
     permission_classes = [IsAuthenticated]
@@ -390,3 +403,35 @@ class FavouriteProductViewSet(viewsets.ModelViewSet):
         fav.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
    
+@extend_schema(tags=["App Feedback"])
+class FeedbackViewSet(viewsets.ModelViewSet):
+    queryset = Feedback.objects.all()
+    serializer_class = FeedbackSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        summary="List all feedbacks",
+        description="Retrieve a list of feedbacks submitted by users. Only staff/admin users should access this endpoint.",
+    )
+    def list(self, request, *args, **kwargs):
+        if not request.user.is_staff:
+            return Response({"detail": "You are not authorized to view feedbacks."}, status=403)
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        summary="Submit feedback",
+        description="Submit a new feedback about the app. Only authenticated users can post feedback.",
+    )
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {"message": "Thank you for your feedback!"},
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

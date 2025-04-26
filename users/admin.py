@@ -1,10 +1,26 @@
 from django.contrib import admin
 from .models import CustomerProfile, SellerProfile, CustomUser
 from .utils import send_seller_verification_email  # function we define in utils.py
-
+from django.contrib.auth.admin import UserAdmin as DefaultUserAdmin
 # admin.site.register(CustomerProfile)
-admin.site.register(CustomUser)
-
+@admin.register(CustomUser)
+class CustomUserAdmin(DefaultUserAdmin):
+    model = CustomUser
+    list_display = ("email", "role", "is_staff", "is_active")
+    list_filter  = ("role", "is_staff", "is_active")
+    search_fields = ("email",)                # ← this is the critical bit
+    ordering      = ("email",)
+    fieldsets = (
+        (None, {"fields": ("email", "password", "role")}),
+        ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser")}),
+        ("Important dates", {"fields": ("last_login",)}),
+    )
+    add_fieldsets = (
+        (None, {
+            "classes": ("wide",),
+            "fields": ("email", "password1", "password2", "role", "is_active", "is_staff"),
+        }),
+    )
 
 @admin.register(SellerProfile)
 class SellerProfileAdmin(admin.ModelAdmin):

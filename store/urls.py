@@ -11,7 +11,7 @@ router.register("orders", views.OrderViewSet, basename="orders")
 router.register("carts", views.CartViewSet, basename="carts")
 #router.register("reviews", views.ReviewViewSet, basename="reviews")
 router.register(r"favourites", views.FavouriteProductViewSet, basename="favourites")
-
+router.register(r'feedback', views.FeedbackViewSet, basename='feedback')
 # Nested router for cart items
 cart_router = routers.NestedSimpleRouter(router, r"carts", lookup="cart")
 cart_router.register(r"items", views.CartItemViewSet, basename="cart-items")

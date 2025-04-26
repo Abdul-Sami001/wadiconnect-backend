@@ -2,6 +2,7 @@ from .models import Notification
 
 def unread_notifications(request):
     if request.user.is_authenticated:
+        unread_qs = Notification.objects.unread().filter(user=request.user)
         return {
                'unread_notifications': unread_qs[:5],
                'unread_count': unread_qs.count()

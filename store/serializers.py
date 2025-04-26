@@ -10,6 +10,7 @@ from .models import (
     CartItem,
     Review,
     FavouriteProduct,
+    Feedback,
 )
 from users.models import SellerProfile
 from django.db.models import Avg
@@ -217,7 +218,21 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
 
 class FavouriteProductSerializer(serializers.ModelSerializer):
     product_title = serializers.ReadOnlyField(source="product.title")
+    product_price = serializers.ReadOnlyField(source="product.unit_price")
+    vendor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = FavouriteProduct
-        fields = ["id", "product", "product_title", "added_at"]
+        fields = ["id", "product", "product_title", "product_price", "vendor_name", "added_at"]
+
+    def get_vendor_name(self, obj):
+        if obj.product.vendor and obj.product.vendor.business_name:
+            return obj.product.vendor.business_name
+        return None
+ 
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ['id', 'user', 'message', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']

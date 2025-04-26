@@ -7,7 +7,7 @@ from users.models import CustomerProfile
 from django.utils.text import slugify
 from django.db.models import Avg 
 from notifications.utils import notify_user
-
+from django.contrib.auth import get_user_model
 
 
 # Create your models here.
@@ -200,3 +200,14 @@ class FavouriteProduct(models.Model):
 
     def __str__(self):
         return f"{self.customer.user.email} favourited {self.product.title}"
+
+
+User = get_user_model()
+
+class Feedback(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Feedback from {self.user.email if self.user else 'Anonymous'}"
