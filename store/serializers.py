@@ -220,16 +220,27 @@ class FavouriteProductSerializer(serializers.ModelSerializer):
     product_title = serializers.ReadOnlyField(source="product.title")
     product_price = serializers.ReadOnlyField(source="product.unit_price")
     vendor_name = serializers.SerializerMethodField()
+    product_image = serializers.SerializerMethodField()
 
     class Meta:
         model = FavouriteProduct
-        fields = ["id", "product", "product_title", "product_price", "vendor_name", "added_at"]
+        fields = ["id", "product", "product_title", "product_price", "vendor_name", "product_image", "added_at"]
 
     def get_vendor_name(self, obj):
         if obj.product.vendor and obj.product.vendor.business_name:
             return obj.product.vendor.business_name
         return None
- 
+    
+    
+    def get_product_image(self, obj):
+        """Return full URL of the first product image"""
+        request = self.context.get("request")
+        first_image = obj.product.images.first()
+        if first_image and first_image.image:
+            if request:
+                return request.build_absolute_uri(first_image.image.url)
+            return first_image.image.url
+        return None
 
 class FeedbackSerializer(serializers.ModelSerializer):
     class Meta:
