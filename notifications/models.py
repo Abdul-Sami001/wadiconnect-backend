@@ -10,17 +10,29 @@ class NotificationManager(models.Manager):
         return self.filter(user=user, is_read=False).update(is_read=True)
 class Notification(models.Model):
     TYPE_CHOICES = [
-        ('order_status', 'Order Status'),
-        ('promotion', 'Promotion'),
-        ('account', 'Account'),
-        ('inventory', 'Inventory'),
-        ('review', 'Review'),
-        ('support', 'Support'),
+        # User-facing
+        ('order_confirmation', 'Order Confirmation'),
+        ('order_status_change', 'Order Status Change'),
+        ('delivery_delay', 'Delivery Delay'),
+        ('order_cancellation', 'Order Cancellation'),
+        ('payment_success', 'Payment Success'),
+        ('payment_failed', 'Payment Failed'),
+        ('refund_processed', 'Refund Processed'),
+        ('discount_offer', 'Discount/Coupon Offer'),
+        ('new_restaurant', 'New Restaurant Alert'),
+        ('review_reminder', 'Review Reminder'),
+        ('restaurant_reply', 'Restaurant Reply'),
+        # Restaurant-facing
+        ('new_order', 'New Order Received'),
+        ('restaurant_order_cancellation', 'Order Cancellation (Restaurant)'),
+        ('new_review', 'New Review Posted'),
+        ('low_stock', 'Low Stock Alert'),
+        ('payment_received', 'Payment Received'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     message = models.TextField()
-    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    notification_type = models.CharField(max_length=50, choices=TYPE_CHOICES)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     payload = models.JSONField(blank=True, null=True)

@@ -19,3 +19,11 @@ def notify_sellers(message, notification_type, payload=None):
             payload=payload or {}
         ) for seller in sellers
     ])
+    
+def notify_restaurant(seller, message, notification_type, payload=None):
+    return Notification.objects.create(
+        user=seller,
+        message=message,
+        notification_type=notification_type,
+        payload=payload or {}
+    )

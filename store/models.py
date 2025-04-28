@@ -45,6 +45,18 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.title
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old_product = Product.objects.get(pk=self.pk)
+            if self.inventory <= 2 and old_product.inventory > 2:
+                if hasattr(self, 'vendor') and self.vendor:
+                    notify_user(
+                        self.vendor.user,
+                        f"Low stock: {self.title} ({self.inventory} left).",
+                        'low_stock',
+                        {'product_id': self.id}
+                )
+                    super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["title"]
@@ -62,58 +74,130 @@ class Order(models.Model):
     PAYMENT_STATUS_PENDING = "P"
     PAYMENT_STATUS_COMPLETE = "C"
     PAYMENT_STATUS_FAILED = "F"
+
     PAYMENT_STATUS_CHOICES = [
         (PAYMENT_STATUS_PENDING, "Pending"),
         (PAYMENT_STATUS_COMPLETE, "Complete"),
         (PAYMENT_STATUS_FAILED, "Failed"),
     ]
 
-    placed_at = models.DateTimeField(auto_now_add=True)
-    payment_status = models.CharField(
-        max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
-    )
-    customer = models.ForeignKey(CustomerProfile, on_delete=models.PROTECT)
     DELIVERY_STATUS = (
         ("PREPARING", "Preparing"),
         ("ON_ROUTE", "On Delivery Route"),
         ("DELIVERED", "Delivered"),
     )
+
+    placed_at = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+        max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
+    )
+    customer = models.ForeignKey(CustomerProfile, on_delete=models.PROTECT)
     delivery_status = models.CharField(
         max_length=20, choices=DELIVERY_STATUS, default="PREPARING"
     )
-    delivery_address = models.TextField()  # Snapshot at order time
+    delivery_address = models.TextField()
+
+    # Add vendor field (required for notifying sellers)
+    vendor = models.ForeignKey(
+        "users.SellerProfile",
+        on_delete=models.PROTECT,
+        related_name="orders",
+        null=True,
+        blank=True
+    )
+
     class Meta:
         permissions = [("cancel_order", "Can cancel order")]
 
     def calculate_total_amount(self):
         total_amount = sum(
             item.unit_price * item.quantity for item in self.items.all()
-        )  # Calculate total from OrderItems
-        # total_amount *= Decimal("0.9")
+        )
         return round(total_amount, 2)
+
     def save(self, *args, **kwargs):
         created = not self.pk
+
+        if not created:
+            old_order = Order.objects.get(pk=self.pk)
+            old_delivery_status = old_order.delivery_status
+            old_payment_status = old_order.payment_status
+        else:
+            old_delivery_status = None
+            old_payment_status = None
+
         super().save(*args, **kwargs)
 
+        # 1. Order Confirmation (User + Vendor)
         if created:
             notify_user(
                 self.customer.user,
-                f"New order #{self.id} placed!",
-                'order_status',
+                f"Your order #{self.id} has been confirmed!",
+                'order_confirmation',
                 {'order_id': self.id}
             )
-        elif self.delivery_status == 'DELIVERED':
+            if self.vendor:
+                notify_user(
+                    self.vendor.user,
+                    f"New order #{self.id} received!",
+                    'new_order',
+                    {'order_id': self.id}
+                )
+
+        # 2. Delivery Status Changes
+        if not created and self.delivery_status != old_delivery_status:
+            status_messages = {
+                'PREPARING': f"Preparing your order #{self.id}.",
+                'ON_ROUTE': f"Your order #{self.id} is on the way!",
+                'DELIVERED': f"Your order #{self.id} has been delivered!"
+            }
+            if self.delivery_status in status_messages:
+                notify_user(
+                    self.customer.user,
+                    status_messages[self.delivery_status],
+                    'order_status_change',
+                    {'order_id': self.id}
+                )
+
+        # 3. Payment Status Changes
+        if not created and self.payment_status != old_payment_status:
+            if self.payment_status == self.PAYMENT_STATUS_COMPLETE:
+                notify_user(
+                    self.customer.user,
+                    f"Payment of ${self.calculate_total_amount()} for order #{self.id} was successful!",
+                    'payment_success',
+                    {'order_id': self.id}
+                )
+                if self.vendor:
+                    notify_user(
+                        self.vendor.user,
+                        f"Payment for order #{self.id} received successfully!",
+                        'payment_received',
+                        {'order_id': self.id}
+                    )
+            elif self.payment_status == self.PAYMENT_STATUS_FAILED:
+                notify_user(
+                    self.customer.user,
+                    f"Payment failed for order #{self.id}. Please retry.",
+                    'payment_failed',
+                    {'order_id': self.id}
+                )
+
+    def cancel(self, cancelled_by_user=True):
+        self.payment_status = self.PAYMENT_STATUS_FAILED
+        self.save()
+
+        notify_user(
+            self.customer.user,
+            f"Order #{self.id} has been canceled.",
+            'order_cancellation',
+            {'order_id': self.id}
+        )
+        if self.vendor:
             notify_user(
-                self.customer.user,
-                f"Your order #{self.id} has been delivered!",
-                'order_status',
-                {'order_id': self.id}
-            )
-        elif self.delivery_status == 'ON_ROUTE':
-            notify_user(
-                self.customer.user,
-                f"Your order #{self.id} is on the way!",
-                'order_status',
+                self.vendor.user,
+                f"Order #{self.id} was canceled.",
+                'restaurant_order_cancellation',
                 {'order_id': self.id}
             )
 
@@ -160,9 +244,19 @@ class Review(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.rating} Stars"
     def save(self, *args, **kwargs):
-        """Update vendor rating on save"""
-        super().save(*args, **kwargs)
-        self.update_vendor_rating()
+     created = not self.pk
+     super().save(*args, **kwargs)
+
+    # Send notification when new review created
+     if created and self.product.vendor:
+        notify_user(
+            self.product.vendor.user,
+            f"New review from {self.user.email}!",
+            'new_review',
+            {'review_id': self.id}
+        )
+
+     self.update_vendor_rating()
 
     def delete(self, *args, **kwargs):
         """Update vendor rating on delete"""
