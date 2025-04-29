@@ -94,6 +94,8 @@ class UpgradeToSellerView(APIView):
         # Ensure current user is not already a seller
         if request.user.role == CustomUser.SELLER:
             return Response({"error": "You are already a seller."}, status=status.HTTP_400_BAD_REQUEST)
+        if SellerProfile.objects.filter(user=request.user).exists():
+            return Response({"error": "Seller profile already exists for this user."}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = SellerProfileSerializer(data=request.data)
         if serializer.is_valid():
