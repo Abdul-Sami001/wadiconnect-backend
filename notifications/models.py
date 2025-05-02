@@ -49,3 +49,23 @@ class Notification(models.Model):
     def mark_as_read(self):
         self.is_read = True
         self.save()
+class OrderNotification(models.Model):
+    notification = models.OneToOneField(
+        Notification, 
+        on_delete=models.CASCADE,
+        related_name='order_details'
+    )
+    order = models.ForeignKey(
+        'store.Order', 
+        on_delete=models.PROTECT,
+        related_name='notifications'
+    )
+    status_before = models.CharField(max_length=20)
+    status_after = models.CharField(max_length=20)
+    snapshot = models.JSONField()
+
+    class Meta:
+         indexes = [
+        models.Index(fields=['order']),  # Valid field on OrderNotification
+    ]
+         

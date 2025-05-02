@@ -105,6 +105,18 @@ class Order(models.Model):
         null=True,
         blank=True
     )
+    @property
+    def notification_history(self):
+        return self.notifications.select_related('notification').order_by('-notification__created_at')
+    def get_status_history(self):
+        return [
+            {
+                'status': n.status_after,
+                'timestamp': n.notification.created_at,
+                'message': n.notification.message
+                }
+            for n in self.notification_history
+    ]
 
     class Meta:
         permissions = [("cancel_order", "Can cancel order")]

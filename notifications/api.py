@@ -27,10 +27,22 @@ class NotificationDetailAPI(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user)
+        order_id = self.request.query_params.get('order_id')
+        if order_id:
+            queryset = queryset.filter(order_details__order_id=order_id)
+            return Notification.objects.filter(user=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(is_read=True)
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     order_id = self.request.query_params.get('order_id')
+        
+    #     if order_id:
+    #         queryset = queryset.filter(
+    #             order_details__order_id=order_id
+    #         )
+    #     return queryset
 
 class MarkAllAsReadAPI(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
