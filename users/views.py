@@ -13,17 +13,41 @@ class RegisterUserView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        email = request.data.get("email")
+
+        # First, check if a user already exists with this email
+        if email:
+            try:
+                existing_user = CustomUser.objects.get(email=email)
+
+                if existing_user.is_active:
+                    return Response(
+                        {"error": "This email is already registered and verified."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # If user is inactive, resend OTP and return early
+                send_otp_to_email(existing_user.email)
+                return Response(
+                    {"message": "User already registered but not verified. OTP resent to your email."},
+                    status=status.HTTP_200_OK
+                )
+
+            except CustomUser.DoesNotExist:
+                pass  # Proceed to registration if user does not exist
+
+        # No existing user or email not provided yet — continue with serializer
         serializer = RegisterUserSerializer(data=request.data)
+
         if serializer.is_valid():
-            user = serializer.save()  # user is created inactive
-            # Send OTP email
+            user = serializer.save()  # New inactive user created
             send_otp_to_email(user.email)
             return Response(
                 {"message": "User registered. Please verify OTP sent to your email."},
                 status=status.HTTP_201_CREATED
             )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 # 2. OTP Verification view: Verify OTP and activate user, create profile accordingly
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
