@@ -6,6 +6,8 @@ from rest_framework.pagination import PageNumberPagination
 from .utils import notify_user
 from store.models import Order, Review 
 from .serializers import SuccessResponseSerializer
+from .serializers import UserDeviceSerializer
+
 
 class NotificationPagination(PageNumberPagination):
     page_size = 10
@@ -25,12 +27,9 @@ class NotificationListAPI(generics.ListAPIView):
 class NotificationDetailAPI(generics.RetrieveUpdateAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
     def get_queryset(self):
-        order_id = self.request.query_params.get('order_id')
-        if order_id:
-            queryset = queryset.filter(order_details__order_id=order_id)
-            return Notification.objects.filter(user=self.request.user)
+        return Notification.objects.filter(user=self.request.user)
+
 
     def perform_update(self, serializer):
         serializer.save(is_read=True)
@@ -103,3 +102,30 @@ class ClearAllNotificationsAPI(generics.GenericAPIView):
     def delete(self, request):
         deleted, _ = Notification.objects.filter(user=request.user).delete()
         return Response({'status': 'success', 'deleted': deleted})
+class DeviceRegistrationAPI(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserDeviceSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+
+        UserDevice.objects.filter(
+            token=serializer.validated_data['token']
+        ).delete()
+        
+        device = serializer.save(user=request.user)
+        return Response({"status": "Device registered"}, status=201)
+
+    def delete(self, request):
+        token = request.data.get('token')
+        UserDevice.objects.filter(user=request.user, token=token).delete()
+        return Response({"status": "Device unregistered"})
+class OrderNotificationsAPI(generics.ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        order_id = self.kwargs['order_id']
+        return Notification.objects.filter(user=self.request.user, payload__order_id=order_id)

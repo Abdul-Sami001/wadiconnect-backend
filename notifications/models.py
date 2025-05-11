@@ -28,6 +28,7 @@ class Notification(models.Model):
         ('new_review', 'New Review Posted'),
         ('low_stock', 'Low Stock Alert'),
         ('payment_received', 'Payment Received'),
+        ('account', 'Account Activity'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -36,12 +37,17 @@ class Notification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     payload = models.JSONField(blank=True, null=True)
+    deduplication_key = models.CharField(max_length=255, blank=True, null=True, unique=True)
 
     # ✅ Apply your custom manager here
     objects = NotificationManager()
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['notification_type', 'is_read'])
+        ]
 
     def __str__(self):
         return f"{self.user.email}: {self.message[:50]}"
@@ -68,4 +74,12 @@ class OrderNotification(models.Model):
          indexes = [
         models.Index(fields=['order']),  # Valid field on OrderNotification
     ]
-         
+        
+class UserDevice(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255, unique=True)
+    platform = models.CharField(max_length=50)  # e.g., 'android', 'ios', 'web'
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.platform}" 
