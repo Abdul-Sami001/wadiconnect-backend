@@ -5,7 +5,9 @@ from .api import (
     MarkAllAsReadAPI,
     DeliveryDelayAPI,   # ✅ Import added
     RestaurantReplyAPI,
-    ClearAllNotificationsAPI # ✅ Import added
+    ClearAllNotificationsAPI,
+    DeviceRegistrationAPI,
+    OrderNotificationsAPI    
 )
 
 urlpatterns = [
@@ -14,5 +16,8 @@ urlpatterns = [
     path('mark-all-read/', MarkAllAsReadAPI.as_view(), name='mark-all-read'),
     path('delivery-delay/<int:order_id>/', DeliveryDelayAPI.as_view(), name='delivery-delay'),
     path('restaurant-reply/<int:review_id>/', RestaurantReplyAPI.as_view(), name='restaurant-reply'),
-    path('clear/', ClearAllNotificationsAPI.as_view(), name='notification-clear'), 
+    path('clear/', ClearAllNotificationsAPI.as_view(), name='notification-clear'),
+    path('devices/', DeviceRegistrationAPI.as_view(), name='device-registration'),
+    path('order/<int:order_id>/', OrderNotificationsAPI.as_view(), name='order-notifications'),
+
 ]
