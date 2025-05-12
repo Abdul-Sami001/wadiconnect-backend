@@ -219,12 +219,14 @@ class OrderStatusUpdateSerializer(serializers.ModelSerializer):
 class FavouriteProductSerializer(serializers.ModelSerializer):
     product_title = serializers.ReadOnlyField(source="product.title")
     product_price = serializers.ReadOnlyField(source="product.unit_price")
+    product_description = serializers.ReadOnlyField(source="product.description")
+    vendor_id = serializers.ReadOnlyField(source="product.vendor.id")
     vendor_name = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
 
     class Meta:
         model = FavouriteProduct
-        fields = ["id", "product", "product_title", "product_price", "vendor_name", "product_image", "added_at"]
+        fields = ["id", "product", "product_title", "product_price","product_description","vendor_id", "vendor_name", "product_image", "added_at"]
 
     def get_vendor_name(self, obj):
         if obj.product.vendor and obj.product.vendor.business_name:

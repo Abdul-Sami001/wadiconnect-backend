@@ -402,6 +402,12 @@ class FavouriteProductViewSet(viewsets.ModelViewSet):
         fav = self.get_object()
         fav.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @action(detail=False, methods=["delete"], url_path="delete-all")
+    def delete_all_favourites(self, request):
+        customer = request.user.customer_profile
+        deleted_count, _ = FavouriteProduct.objects.filter(customer=customer).delete()
+        return Response({"message": f"Deleted {deleted_count} favourite product(s)."}, status=status.HTTP_200_OK)
    
 @extend_schema(tags=["App Feedback"])
 class FeedbackViewSet(viewsets.ModelViewSet):
