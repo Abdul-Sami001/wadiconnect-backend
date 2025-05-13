@@ -1,6 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.response import Response
-from .models import Notification
+from .models import Notification, UserDevice
 from .serializers import NotificationSerializer
 from rest_framework.pagination import PageNumberPagination
 from .utils import notify_user
