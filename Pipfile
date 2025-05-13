@@ -14,6 +14,7 @@ drf-spectacular = "*"
 drf-nested-routers = "*"
 django-filter = "*"
 django-cors-headers = "*"
+firebase-admin = "==6.8.0"
 
 [dev-packages]
 
