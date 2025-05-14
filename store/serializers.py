@@ -238,10 +238,13 @@ class FavouriteProductSerializer(serializers.ModelSerializer):
     vendor_id = serializers.ReadOnlyField(source="product.vendor.id")
     vendor_name = serializers.SerializerMethodField()
     product_image = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = FavouriteProduct
-        fields = ["id", "product", "product_title", "product_price","product_description","vendor_id", "vendor_name", "product_image", "added_at"]
+        fields = ["id", "product", "product_title", "product_price","product_description","vendor_id", "vendor_name", "product_image","review_count",
+            "average_rating", "added_at"]
 
     def get_vendor_name(self, obj):
         if obj.product.vendor and obj.product.vendor.business_name:
@@ -258,6 +261,14 @@ class FavouriteProductSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(first_image.image.url)
             return first_image.image.url
         return None
+    
+    def get_review_count(self, obj):
+        return obj.product.reviews.count()
+
+    def get_average_rating(self, obj):
+        avg = obj.product.reviews.aggregate(Avg("rating"))["rating__avg"]
+        return round(avg, 1) if avg is not None else 0
+
 
 class FeedbackSerializer(serializers.ModelSerializer):
     class Meta:
