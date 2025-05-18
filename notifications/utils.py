@@ -101,7 +101,7 @@ def create_order_notification(order, message, notification_type, snapshot_data=N
             message=message,
             notification_type=notification_type,
             payload=payload,
-            order_id=order.id  # Optional field if you add it to model
+            # order_id=order.id  # Optional field if you add it to model
         )
 
         OrderNotification.objects.update_or_create(
