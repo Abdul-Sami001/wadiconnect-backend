@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     "django_filters",
     "corsheaders",  # For handling CORS
     "users",
-    'notifications',
+    # 'notifications',
+    'notifications.apps.NotificationsConfig',
     "store",
 ]
 

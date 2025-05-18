@@ -3,6 +3,7 @@ from django.db import IntegrityError
 import logging
 from .fcm_admin import send_push_notification
 from .models import UserDevice
+import traceback
 
 logger = logging.getLogger(__name__)
 def notify_user(user, message, notification_type, payload=None, deduplication_key=None):
@@ -29,25 +30,28 @@ def notify_user(user, message, notification_type, payload=None, deduplication_ke
         )
 
         # 4. Get device tokens
-        device_tokens = list(
-            UserDevice.objects
-            .filter(user=user)
-            .values_list('token', flat=True)
-        )
-
-        # 5. Send push via Firebase
-        if device_tokens:
-            send_push_notification(
-                device_tokens=device_tokens,
-                title="You have a new notification",
-                body=message,
-                data={
-                    "type": notification_type,
-                    **(payload or {})
+        
+        devices = UserDevice.objects.filter(user=user)
+        if devices.exists():
+            device_tokens = list(devices.values_list('token', flat=True))
+            try:
+                send_push_notification(
+                    device_tokens=device_tokens,
+                    title="New Notification",
+                    body=message,
+                    data={
+                        "notification_id": str(notification.id),
+                        "type": notification_type,
+                        **(payload or {})
                 }
             )
+            except Exception as push_error:
+                logger.warning(f"Push failed for user {user.id}: {str(push_error)}")
+            else:
+                logger.info(f"No devices found for user {user.id}")
+                return notification
 
-        return notification
+     
 
     except IntegrityError as e:
         logger.warning(f"Notification creation failed for user {user.id}: {str(e)}")
