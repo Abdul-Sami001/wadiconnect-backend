@@ -29,4 +29,7 @@ class UserDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDevice
         fields = ['token', 'platform']
-
+        extra_kwargs = {
+            'platform': {'required': True},
+            'token': {'required': True}
+        }

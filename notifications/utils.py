@@ -3,7 +3,7 @@ from django.db import IntegrityError
 import logging
 from .fcm_admin import send_push_notification
 from .models import UserDevice
-import traceback
+# import traceback
 
 logger = logging.getLogger(__name__)
 def notify_user(user, message, notification_type, payload=None, deduplication_key=None):
@@ -47,9 +47,9 @@ def notify_user(user, message, notification_type, payload=None, deduplication_ke
             )
             except Exception as push_error:
                 logger.warning(f"Push failed for user {user.id}: {str(push_error)}")
-            else:
-                logger.info(f"No devices found for user {user.id}")
-                return notification
+        else:
+            logger.info(f"No devices found for user {user.id}")
+            return notification
 
      
 
