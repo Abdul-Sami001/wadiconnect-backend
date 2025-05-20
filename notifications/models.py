@@ -66,7 +66,7 @@ class OrderNotification(models.Model):
         on_delete=models.PROTECT,
         related_name='notifications'
     )
-    status_before = models.CharField(max_length=20)
+    status_before = models.CharField(max_length=20, null=True, blank=True)
     status_after = models.CharField(max_length=20)
     snapshot = models.JSONField()
 

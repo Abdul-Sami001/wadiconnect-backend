@@ -52,8 +52,8 @@ def track_order_changes(sender, instance, **kwargs):
     try:
         original = Order.objects.get(pk=instance.pk)
         instance._original_data = {
-            'delivery_status': original.delivery_status,
-            'payment_status': original.payment_status,
+            'delivery_status': original.delivery_status if original else None,
+            'payment_status': original.payment_status if original else None,
             'is_cancelled': original.payment_status == Order.PAYMENT_STATUS_FAILED
         }
 

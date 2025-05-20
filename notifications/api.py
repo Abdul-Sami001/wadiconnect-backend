@@ -109,6 +109,8 @@ class DeviceRegistrationAPI(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        if not serializer.validated_data.get('platform'):
+            return Response({"error": "Platform is required"}, status=400)
         
 
         UserDevice.objects.filter(
