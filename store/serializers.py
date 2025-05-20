@@ -205,20 +205,42 @@ class CartSerializer(serializers.ModelSerializer):
 
 class SellerProductSerializer(serializers.ModelSerializer):
     """Variant for seller dashboard with extended fields"""
-
+    category_name = serializers.CharField(source='category.title', read_only=True)
+    vendor_name = serializers.SerializerMethodField()
+    images = ProductImageSerializer(many=True, read_only=True)
     review_count = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
 
-    class Meta(ProductSerializer.Meta):
-        fields = ProductSerializer.Meta.fields + ["review_count", "average_rating"]
+    class Meta:
+        model = Product
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "description",
+            "unit_price",
+            "inventory",
+            "category",
+            "category_name",
+            "vendor",
+            "vendor_name",
+            "images",
+            "last_update",
+            "review_count",
+            "average_rating",
+        ]
+        read_only_fields = ["id", "slug", "last_update", "category_name", "vendor_name", 
+                          "review_count", "average_rating"]
+
+    def get_vendor_name(self, obj):
+        return obj.vendor.business_name if obj.vendor and obj.vendor.business_name else None
 
     def get_review_count(self, obj):
         return obj.reviews.count()
 
     def get_average_rating(self, obj):
-        return obj.reviews.aggregate(Avg("rating"))["rating__avg"]
-
-
+        avg = obj.reviews.aggregate(Avg("rating"))["rating__avg"]
+        return round(avg, 1) if avg is not None else 0
 class OrderStatusUpdateSerializer(serializers.ModelSerializer):
     """For partial updates to order status"""
 

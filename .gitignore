@@ -1,3 +1,5 @@
 push-notifications-key.json
 push-notifications-key.json
 requirements.txt
+_pycache_/
+*.pyc
