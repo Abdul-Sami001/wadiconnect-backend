@@ -62,6 +62,7 @@ def track_order_changes(sender, instance, **kwargs):
                 {
                     'product': item.product.title,
                     'quantity': item.quantity,
+                    'product_id': str(item.product.id),
                     'unit_price': str(item.unit_price)
                 } for item in instance.items.all()
             ],
@@ -94,6 +95,9 @@ def handle_order_notifications(sender, instance, created, **kwargs):
             snapshot_data=snapshot,
             original_statuses=original
         )
+        if not notification:
+            logger.error(f"Failed to create notification for order {instance.id}")
+            return
 
         # 1. New Order
         if created:
@@ -115,6 +119,20 @@ def handle_order_notifications(sender, instance, created, **kwargs):
                 f"{original['delivery_status']} → {instance.delivery_status}"
             )
             notification.save()
+        if original['delivery_status'] != Order.DELIVERED and instance.delivery_status == Order.DELIVERED:
+            product_ids = [str(item.product.id) for item in instance.items.all()]
+            notify_user(
+                instance.customer.user,
+                f"Please review your order #{instance.id}!",
+                'review_reminder',
+                {
+                    'order_id': instance.id,
+                    'product_ids': product_ids,
+                    'deep_link': f"app://orders/{instance.id}/review"
+                    },
+                deduplication_key=f"review_reminder_{instance.id}"
+                )
+
 
         # 3. Payment Status Change
         if instance.payment_status != original['payment_status']:
