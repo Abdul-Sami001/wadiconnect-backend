@@ -120,7 +120,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
-
+@extend_schema(tags=["Order API's"])
 class OrderViewSet(viewsets.ModelViewSet):
     """
     Handles Order lifecycle with role-based access
@@ -130,18 +130,31 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """Customers see their orders, sellers see orders for their products"""
+        """Customers see their orders, sellers see orders for their products based on 'as' query param."""
+        user = self.request.user
+        role = self.request.query_params.get("as", None)  # get 'as' param from URL
         queryset = Order.objects.prefetch_related("items__product")
 
-        if hasattr(self.request.user, "customer_profile"):
-            return queryset.filter(customer=self.request.user.customer_profile)
+    # Validate role param and filter accordingly
+        if role == "seller":
+            if hasattr(user, "seller_profile"):
+                return queryset.filter(items__product__vendor=user.seller_profile).distinct()
+            else:
+                return queryset.none()  # no seller profile, no results
 
-        elif hasattr(self.request.user, "seller_profile"):
-            return queryset.filter(
-                items__product__vendor=self.request.user.seller_profile
-            ).distinct()
+        elif role == "customer":
+            if hasattr(user, "customer_profile"):
+                return queryset.filter(customer=user.customer_profile)
+            else:
+                return queryset.none()  # no customer profile, no results
 
-        return queryset.none()
+        # Default fallback behavior: show customer orders if available else seller orders
+        if hasattr(user, "customer_profile"):
+            return queryset.filter(customer=user.customer_profile)
+        elif hasattr(user, "seller_profile"):
+            return queryset.filter(items__product__vendor=user.seller_profile).distinct()
+        else:
+            return queryset.none()
 
     @extend_schema(
     request=CreateOrderSerializer,
