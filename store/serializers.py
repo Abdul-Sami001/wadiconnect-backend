@@ -38,10 +38,36 @@ class ProductImageSerializer(serializers.ModelSerializer):
         return representation
 
 
+class ProductCreateSerializer(serializers.ModelSerializer):
+    vendor = serializers.PrimaryKeyRelatedField(
+        queryset=SellerProfile.objects.all(),
+        required=False  # You'll set this manually
+    )
+    images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
+    )
+    class Meta:
+        model = Product
+        fields = [
+            "id", "title", "description", "unit_price",
+            "inventory", "category", "images", "vendor"
+        ]
+        read_only_fields = ["id", "vendor"]
+        
+    def create(self, validated_data):
+        images = validated_data.pop("images", [])
+        product = Product.objects.create(**validated_data)
+
+        for image in images:
+            ProductImage.objects.create(product=product, image=image)
+
+        return product
+
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     vendor = serializers.PrimaryKeyRelatedField(
-        queryset=SellerProfile.objects.all(), default=serializers.CurrentUserDefault()
+        queryset=SellerProfile.objects.all(),
+        required=False  # We'll set this in perform_create
     )
     vendor_name = serializers.SerializerMethodField()
     category_name = serializers.CharField(source="category.title", read_only=True)
@@ -68,12 +94,7 @@ class ProductSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "slug", "last_update", "category_name", "vendor_name", "review_count", "average_rating",]
         extra_kwargs = {"category": {"required": True}}
 
-    def validate_vendor(self, value):
-        """Ensure vendor is verified"""
-        if not value.verification_status == "verified":
-            raise serializers.ValidationError("Only verified sellers can add products")
-        return value
-
+    
     def get_vendor_name(self, obj):
         return obj.vendor.business_name if obj.vendor and obj.vendor.business_name else None
 
