@@ -39,25 +39,38 @@ class Product(models.Model):
         "users.SellerProfile",
         on_delete=models.PROTECT,
         related_name="products",
-        null=True,
-        blank=True,
-    )  # Remove null and blank
+        
+    )  
 
     def __str__(self) -> str:
         return self.title
     def save(self, *args, **kwargs):
-        if self.pk:
-            old_product = Product.objects.get(pk=self.pk)
-            if self.inventory <= 2 and old_product.inventory > 2:
-                if hasattr(self, 'vendor') and self.vendor:
-                    notify_user(
-                        self.vendor.user,
-                        f"Low stock: {self.title} ({self.inventory} left).",
-                        'low_stock',
-                        {'product_id': self.id}
-                )
-                    super().save(*args, **kwargs)
+        # Generate slug from title if not present or changed
+        if not self.slug or Product.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+            base_slug = slugify(self.title)
+            slug = base_slug
+            count = 1
+            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                count += 1
+                slug = f"{base_slug}-{count}"
+            self.slug = slug
+        
+        is_update = self.pk is not None
+        old_inventory = None
 
+        if is_update:
+            old_inventory = Product.objects.get(pk=self.pk).inventory
+
+        super().save(*args, **kwargs)
+
+        if is_update and self.inventory <= 2 and old_inventory > 2:
+            if hasattr(self, 'vendor') and self.vendor:
+                notify_user(
+                    self.vendor.user,
+                    f"Low stock: {self.title} ({self.inventory} left).",
+                    'low_stock',
+                    {'product_id': self.id}
+                )
     class Meta:
         ordering = ["title"]
 

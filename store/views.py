@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct, Feedback
 from .serializers import (
     ProductSerializer,
+    ProductCreateSerializer,
     CategorySerializer,
     OrderSerializer,
     OrderItemSerializer,
@@ -63,6 +64,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         """Inject request context for image URL generation"""
         return {"request": self.request}
 
+    def get_serializer_class(self):
+        """Dynamically choose serializer based on action"""
+        if self.action in ["create", "update", "partial_update"]:
+            return ProductCreateSerializer
+        return ProductSerializer
+    
     def get_permissions(self):
         """Vendors can only modify their own products"""
         if self.action in ["create", "update", "partial_update", "destroy"]:
@@ -84,9 +91,27 @@ class ProductViewSet(viewsets.ModelViewSet):
         """Auto-assign vendor from logged-in seller"""
         if hasattr(self.request.user, "seller_profile"):
             serializer.save(vendor=self.request.user.seller_profile)
+           
         else:
             raise PermissionDenied("Only sellers can create products")
 
+    def create(self, request, *args, **kwargs):
+        """Use create serializer for input, but return full product serializer for output"""
+        try:
+            seller_profile = request.user.seller_profile
+        except SellerProfile.DoesNotExist:
+            raise PermissionDenied("Only sellers can add products.")           
+        # Use create serializer for input validation
+        serializer = ProductCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Save and assign vendor from logged in user, ignoring vendor field in input
+        product = serializer.save(vendor=request.user.seller_profile)
+
+        # Serialize saved instance with read serializer to return full product details
+        read_serializer = ProductSerializer(product, context=self.get_serializer_context())
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+    
     @action(detail=False, methods=["GET"], url_path="seller-products")
     def seller_products(self, request):
         """Special endpoint for seller dashboard with extended product stats"""
