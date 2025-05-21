@@ -118,9 +118,10 @@ def notify_restaurant(seller, message, notification_type, payload=None):
     return notify_user(seller, message, notification_type, payload)
 
 
-def create_order_notification(order, message, notification_type, snapshot_data=None, original_statuses=None):
+def create_order_notification(order, message, notification_type, original_statuses=None):
     try:
-        product_ids = [str(item.product.id) for item in order.items.all()] 
+        product_ids = [str(item.product.id) for item in order.items.all()]
+        
         payload = {
             'order_id': str(order.id),
             'total_amount': str(order.calculate_total_amount()),
@@ -129,6 +130,7 @@ def create_order_notification(order, message, notification_type, snapshot_data=N
             'product_ids': product_ids
         }
 
+        # Create main Notification
         notification = Notification.objects.create(
             user=order.customer.user,
             message=message,
@@ -136,27 +138,29 @@ def create_order_notification(order, message, notification_type, snapshot_data=N
             payload=payload
         )
 
-        # Ensure status_before is not None if field is NOT nullable
+        # ✅ Always generate full snapshot here
+        snapshot = {
+            'items': [
+                {
+                    'product': item.product.title,
+                    'product_id': str(item.product.id),
+                    'quantity': item.quantity,
+                    'unit_price': str(item.unit_price)
+                } for item in order.items.all()
+            ],
+            'total': str(order.calculate_total_amount()),
+            'delivery_address': order.delivery_address,
+            'payment_status': order.payment_status,
+            'vendor': order.vendor.business_name if order.vendor else None
+        }
+
         OrderNotification.objects.update_or_create(
             notification=notification,
             defaults={
                 'order': order,
                 'status_before': original_statuses.get('delivery_status') if original_statuses else None,
                 'status_after': order.delivery_status,
-                'snapshot': snapshot_data or {
-                    'items': [
-                        {
-                            'product': item.product.title,
-                            'product_id': str(item.product.id), 
-                            'quantity': item.quantity,
-                            'unit_price': str(item.unit_price)
-                        } for item in order.items.all()
-                    ],
-                    'total': str(order.calculate_total_amount()),
-                    'delivery_address': order.delivery_address,
-                    'payment_status': order.payment_status,
-                    'vendor': order.vendor.business_name if order.vendor else None
-                }
+                'snapshot': snapshot
             }
         )
 

@@ -60,6 +60,7 @@ class DeliveryDelayAPI(generics.GenericAPIView):
     def post(self, request, order_id):
         try:
             order = Order.objects.get(id=order_id)
+            product_ids = [str(item.product.id) for item in order.items.all()]
         except Order.DoesNotExist:
             return Response({'error': 'Order not found'}, status=404)
 
@@ -67,7 +68,12 @@ class DeliveryDelayAPI(generics.GenericAPIView):
             order.customer.user,
             f"Order #{order.id} is delayed. We apologize!",
             'delivery_delay',
-            {'order_id': order.id}
+            
+                {  # ✅ Add product_ids to payload
+                    'order_id': order.id,
+                    'product_ids': product_ids,
+                    'estimated_delay': '15 minutes'  # Optional contextual data
+                }
         )
         return Response({'status': 'Delivery delay notification sent successfully'})
 

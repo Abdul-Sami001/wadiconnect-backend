@@ -85,19 +85,21 @@ def track_order_changes(sender, instance, **kwargs):
 def handle_order_notifications(sender, instance, created, **kwargs):
     try:
         original = instance._original_data
-        snapshot = instance._snapshot_data
 
-        # Create main notification snapshot
+        # ✅ Let utils.py handle snapshot with product_id included
         notification = create_order_notification(
             instance,
             f"Order #{instance.id} update",
             'order_status',
-            snapshot_data=snapshot,
+            snapshot_data=None,  # ❌ REMOVE custom snapshot
             original_statuses=original
         )
         if not notification:
             logger.error(f"Failed to create notification for order {instance.id}")
             return
+
+        # ✅ Get product_ids once and reuse
+        product_ids = [str(item.product.id) for item in instance.items.all()]
 
         # 1. New Order
         if created:
@@ -109,7 +111,11 @@ def handle_order_notifications(sender, instance, created, **kwargs):
                 instance.customer.user,
                 f"Order #{instance.id} confirmed!",
                 'order_confirmation',
-                {'order_id': instance.id}
+                {
+                    'order_id': instance.id,
+                    'product_ids': product_ids,
+                    'total_amount': str(instance.calculate_total_amount())
+                }
             )
 
         # 2. Delivery Status Change
@@ -119,8 +125,8 @@ def handle_order_notifications(sender, instance, created, **kwargs):
                 f"{original['delivery_status']} → {instance.delivery_status}"
             )
             notification.save()
+
         if original['delivery_status'] != Order.DELIVERED and instance.delivery_status == Order.DELIVERED:
-            product_ids = [str(item.product.id) for item in instance.items.all()]
             notify_user(
                 instance.customer.user,
                 f"Please review your order #{instance.id}!",
@@ -129,10 +135,9 @@ def handle_order_notifications(sender, instance, created, **kwargs):
                     'order_id': instance.id,
                     'product_ids': product_ids,
                     'deep_link': f"app://orders/{instance.id}/review"
-                    },
+                },
                 deduplication_key=f"review_reminder_{instance.id}"
-                )
-
+            )
 
         # 3. Payment Status Change
         if instance.payment_status != original['payment_status']:
@@ -152,14 +157,21 @@ def handle_order_notifications(sender, instance, created, **kwargs):
                     instance.customer.user,
                     message,
                     msg_type,
-                    {'order_id': instance.id}
+                    {
+                        'order_id': instance.id,
+                        'product_ids': product_ids,
+                        'amount': str(instance.calculate_total_amount())
+                    }
                 )
                 if instance.vendor:
                     notify_user(
                         instance.vendor.user,
                         message,
                         'payment_received' if msg_type == 'payment_success' else 'restaurant_order_cancellation',
-                        {'order_id': instance.id}
+                        {
+                            'order_id': instance.id,
+                            'product_ids': product_ids
+                        }
                     )
 
         # 4. Cancellation
