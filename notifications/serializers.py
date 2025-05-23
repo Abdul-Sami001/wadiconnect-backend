@@ -14,32 +14,42 @@ class OrderNotificationSerializer(serializers.ModelSerializer):
         model = OrderNotification
         fields = ['status_before', 'status_after', 'snapshot']
 
+# serializers.py
+
 class NotificationSerializer(serializers.ModelSerializer):
     order_details = OrderNotificationSerializer(read_only=True)
-    product_ids = serializers.SerializerMethodField()  # New field
+    product_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
         fields = [
-            'id', 'message', 'notification_type',
-            'is_read', 'created_at', 'payload',
-            'order_details', 'product_ids'  # Added product_ids
+            'id', 'message', 'notification_type', 'is_read', 'created_at',
+            'payload', 'order_details', 'product_ids'
         ]
         read_only_fields = ['id', 'created_at', 'payload']
 
     def get_product_ids(self, obj):
-        """Extract product IDs from both payload and order snapshot"""
-        # First check the notification payload
+        # Check payload for product_ids
         if obj.payload and 'product_ids' in obj.payload:
             return obj.payload.get('product_ids', [])
         
-        # If not in payload, check order snapshot items
+        # Check order_details snapshot
         if hasattr(obj, 'order_details'):
             return [
                 str(item.get('product_id')) 
                 for item in obj.order_details.snapshot.get('items', [])
                 if item.get('product_id')
             ]
+        
+        # Fetch from Order using order_id in payload
+        order_id = obj.payload.get('order_id') if obj.payload else None
+        if order_id:
+            try:
+                from store.models import Order
+                order = Order.objects.get(id=order_id)
+                return [str(item.product.id) for item in order.items.all()]
+            except Order.DoesNotExist:
+                pass
         
         return []
 class UserDeviceSerializer(serializers.ModelSerializer):

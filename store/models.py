@@ -152,6 +152,7 @@ class Order(models.Model):
             old_payment_status = None
 
         super().save(*args, **kwargs)
+        product_ids = [str(item.product.id) for item in self.items.all()]
 
         # 1. Order Confirmation (User + Vendor)
         if created:
@@ -159,7 +160,9 @@ class Order(models.Model):
                 self.customer.user,
                 f"Your order #{self.id} has been confirmed!",
                 'order_confirmation',
-                {'order_id': self.id}
+                {'order_id': self.id,
+                 'product_ids': product_ids}
+                
             )
             if self.vendor:
                 notify_user(
