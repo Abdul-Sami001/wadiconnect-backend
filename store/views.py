@@ -29,8 +29,8 @@ from django.db.models import Count
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from users.serializers import SellerProfileSerializer
 from notifications.utils import notify_user
-
-
+from django.http import Http404
+from rest_framework import status
 class SellerProfileViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     """
     API endpoint to list verified sellers with their profile information and ratings.
@@ -176,10 +176,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Default fallback behavior: show customer orders if available else seller orders
         if hasattr(user, "customer_profile"):
             return queryset.filter(customer=user.customer_profile)
-        elif hasattr(user, "seller_profile"):
+        if hasattr(user, "seller_profile"):
             return queryset.filter(items__product__vendor=user.seller_profile).distinct()
-        else:
-            return queryset.none()
+        return queryset.none()
 
     @extend_schema(
     request=CreateOrderSerializer,
@@ -240,12 +239,57 @@ class OrderViewSet(viewsets.ModelViewSet):
         detail=True, methods=["PATCH"], serializer_class=OrderStatusUpdateSerializer
     )
     def update_status(self, request, pk=None):
-        """Special endpoint for status updates (for sellers)"""
-        order = self.get_object()
-        serializer = self.get_serializer(order, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        """Special endpoint for status updates with role-based access"""
+        user = request.user
+        role = request.query_params.get("as", None)
+    
+        try:
+            # Apply the same filtering logic as get_queryset()
+            queryset = Order.objects.prefetch_related("items__product")
+        
+            if role == "seller":
+                if hasattr(user, "seller_profile"):
+                    queryset = queryset.filter(items__product__vendor=user.seller_profile).distinct()
+                else:
+                    return Response(
+                    {"detail": "Seller profile required for seller access"},
+                    status=status.HTTP_403_FORBIDDEN
+                    )
+        
+            elif role == "customer":
+                if hasattr(user, "customer_profile"):
+                    queryset = queryset.filter(customer=user.customer_profile)
+                else:
+                    return Response(
+                    {"detail": "Customer profile required for customer access"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+            else:  # Default behavior
+                if hasattr(user, "customer_profile"):
+                    queryset = queryset.filter(customer=user.customer_profile)
+                elif hasattr(user, "seller_profile"):
+                    queryset = queryset.filter(items__product__vendor=user.seller_profile).distinct()
+                else:
+                    return Response(
+                    {"detail": "No valid profile found for this user"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Now get the specific order
+            order = queryset.get(pk=pk)
+        
+            # Proceed with status update
+            serializer = self.get_serializer(order, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+        except Order.DoesNotExist:
+            return Response(
+            {"detail": f"Order {pk} not found or you don't have access"},
+            status=status.HTTP_404_NOT_FOUND
+        )
     
     @extend_schema(
     request={
