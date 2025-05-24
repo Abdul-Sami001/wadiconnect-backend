@@ -7,6 +7,15 @@ from .serializers import RegisterUserSerializer, OTPVerifySerializer, ResendOTPS
 from .utils import send_otp_to_email
 from rest_framework import generics
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+User = get_user_model()
 
 # 1. Registration view: Create user and send OTP
 class RegisterUserView(APIView):
@@ -132,7 +141,7 @@ class UpgradeToSellerView(APIView):
             return Response({"message": "Your details are pending verification; you will receive an email once verified."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
+#5. Profile View: Retrieve and update user profile based on role
 class ProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser)
@@ -166,3 +175,82 @@ class ProfileView(generics.RetrieveUpdateAPIView):
                 }
             )
         return profile
+    
+#6. Custom Login view: Handles custom error messages
+class CustomLoginView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get("email")
+        password = request.data.get("password")
+        
+
+        if not email or not password:
+            return Response(
+                {"detail": "Email and password are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"email": "User with this email does not exist."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not user.is_active:
+            return Response(
+                {"detail": "Please verify your email via OTP before logging in."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not user.check_password(password):
+            return Response(
+                {"password": "Password does not match."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return super().post(request, *args, **kwargs)
+  
+
+#7. Google Login view: Handles Google OAuth2 login
+class GoogleAuthView(APIView):
+    def post(self, request):
+        id_token_from_client = request.data.get("id_token")
+        if not id_token_from_client:
+            return Response({"detail": "No ID token provided."}, status=400)
+
+        try:
+            # Validate the token with Google
+            idinfo = id_token.verify_oauth2_token(
+                id_token_from_client,
+                google_requests.Request(),
+                audience=getattr(settings, "GOOGLE_CLIENT_ID", None)  # Optional
+            )
+
+            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                return Response({"detail": "Wrong token issuer."}, status=400)
+
+            email = idinfo.get("email")
+            name = idinfo.get("name", "")
+            if not email:
+                return Response({"detail": "Email not found in token."}, status=400)
+
+            # Check if the user exists, else create a new one
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={"is_active": True},
+            )
+
+            # Issue JWT tokens
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            })
+
+        except ValueError:
+            return Response({"detail": "Invalid ID token."}, status=400)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=500)

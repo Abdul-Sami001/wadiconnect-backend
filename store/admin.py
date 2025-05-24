@@ -147,7 +147,7 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.display(ordering="total_amount")
     def total_amount(self, order):
-        return f"${order.calculate_total_amount()}"
+        return f"Rs.{order.calculate_total_amount()}"
 
     @admin.action(description="Mark selected as completed")
     def mark_as_completed(self, request, queryset):
