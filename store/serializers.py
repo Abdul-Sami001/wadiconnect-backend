@@ -1,7 +1,10 @@
+from datetime import datetime
+from django.forms import ValidationError
 from rest_framework import serializers
 from uuid import UUID
 from .models import (
     Categories,
+    Deal,
     Product,
     ProductImage,
     Order,
@@ -14,7 +17,7 @@ from .models import (
 )
 from users.models import SellerProfile
 from django.db.models import Avg
-
+from django.utils.dateparse import parse_datetime
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Categories
@@ -106,13 +109,23 @@ class ProductSerializer(serializers.ModelSerializer):
         return round(avg, 1) if avg is not None else 0
 class ReviewSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
-
+    product_name = serializers.CharField(source='product.title', read_only=True)
+    product_image = serializers.SerializerMethodField()
     class Meta:
         model = Review
-        fields = ["id", "user", "product", "comment", "rating", "date"]
-        read_only_fields = ["id", "user", "date"]
+        fields = ["id", "user", "product", "product_name", "product_image", "comment", "rating", "date"]
+        read_only_fields = ["id", "user", "date", "product_name"]
         extra_kwargs = {"product": {"write_only": True}}
 
+    def get_product_image(self, obj):
+        # Fetch the first related image
+        image_obj = obj.product.images.first()
+        request = self.context.get('request')
+
+        if image_obj and image_obj.image and hasattr(image_obj.image, 'url'):
+            return request.build_absolute_uri(image_obj.image.url) if request else image_obj.image.url
+        return None
+    
     def validate_rating(self, value):
         if not 1 <= value <= 5:
             raise serializers.ValidationError("Rating must be between 1-5")
@@ -318,3 +331,59 @@ class FeedbackSerializer(serializers.ModelSerializer):
         model = Feedback
         fields = ['id', 'user', 'message', 'created_at']
         read_only_fields = ['id', 'user', 'created_at']
+        
+        
+#=============Deals Serializer=================
+class DealSerializer(serializers.ModelSerializer):
+    seller_business_name = serializers.CharField(source='seller.business_name', read_only=True)
+    seller_profile_picture = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Deal
+        fields = [
+            'id',
+            'title',
+            'subtitle',
+            'description',
+            'image',
+            'original_price',
+            'discount_type',
+            'discount_value',
+            'final_price',
+            'is_limited_time',
+            'valid_until',
+            'seller',
+            'seller_business_name',
+            'seller_profile_picture',
+            'tags',
+            'priority',
+            'created_at'
+        ]
+        extra_kwargs = {
+            'seller': {'write_only': True},  # Hide in response (frontend gets seller_* fields)
+        }
+
+    def get_seller_profile_picture(self, obj):
+        profile_picture = obj.seller.profile_picture
+        request = self.context.get('request')
+        if profile_picture and hasattr(profile_picture, 'url'):
+            return request.build_absolute_uri(profile_picture.url) if request else profile_picture.url
+        return None
+
+    def validate(self, data):
+        """Ensure discount_value is provided for percentage/fixed deals."""
+        if data['discount_type'] in [Deal.PERCENTAGE, Deal.FIXED] and not data.get('discount_value'):
+            raise serializers.ValidationError("discount_value is required for this discount type.")
+        return data
+    
+    def validate_valid_until(self, value):
+        if value is None:
+            return value
+        if isinstance(value, str):
+            parsed = parse_datetime(value)
+            if not parsed:
+                raise ValidationError("Invalid datetime format for valid_until. Use ISO 8601 format.")
+            return parsed
+        if not isinstance(value, datetime):
+            raise ValidationError("valid_until must be a string or a datetime object.")
+        return value

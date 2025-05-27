@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator
 from .validators import validate_file_size
 from django.conf import settings
 from uuid import uuid4
-from users.models import CustomerProfile
+from users.models import CustomerProfile, SellerProfile
 from django.utils.text import slugify
 from django.db.models import Avg 
 from notifications.utils import notify_user
@@ -333,3 +333,66 @@ class Feedback(models.Model):
 
     def __str__(self):
         return f"Feedback from {self.user.email if self.user else 'Anonymous'}"
+
+
+#Models For Deals API
+
+
+class Deal(models.Model):
+    # Discount Types (as per your requirements)
+    PERCENTAGE = 'percentage'
+    FIXED = 'fixed'
+    FREE_DELIVERY = 'free_delivery'
+    
+    DEAL_TYPES = [
+        (PERCENTAGE, 'Percentage Discount'),
+        (FIXED, 'Fixed Amount Discount'),
+        (FREE_DELIVERY, 'Free Delivery'),
+    ]
+
+    # Core Deal Info
+    title = models.CharField(max_length=100)  # e.g., "30% Off"
+    subtitle = models.CharField(max_length=200, blank=True)  # e.g., "On all food items"
+    description = models.TextField()  # Detailed description
+    image = models.URLField(blank=True)  # Deal banner image URL
+
+    # Discount Logic
+    original_price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_type = models.CharField(max_length=20, choices=DEAL_TYPES)
+    discount_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True  # Not needed for FREE_DELIVERY
+    )
+    final_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True)
+
+    # Time Management
+    is_limited_time = models.BooleanField(default=False)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Restaurant Link (replaces restaurant_name/restaurant_image)
+    seller = models.ForeignKey(
+        SellerProfile,
+        on_delete=models.CASCADE,
+        related_name='deals'
+    )
+    # (SellerProfile already has business_name and profile_picture)
+
+    # Frontend Extras
+    tags = models.JSONField(default=list)  # e.g., ["featured", "discount"]
+    priority = models.IntegerField(default=0)  # Higher = shown first
+
+    # Auto-calculate final_price
+    def save(self, *args, **kwargs):
+        if self.discount_type == self.PERCENTAGE:
+            self.final_price = self.original_price * (1 - self.discount_value / 100)
+        elif self.discount_type == self.FIXED:
+            self.final_price = self.original_price - self.discount_value
+        elif self.discount_type == self.FREE_DELIVERY:
+            self.final_price = self.original_price  # No price change, just free delivery
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} (by {self.seller.business_name})"
