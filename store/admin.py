@@ -4,6 +4,7 @@ from django.utils.html import format_html
 
 from .models import (
     Categories,
+    Deal,
     Product,
     ProductImage,
     Order,
@@ -234,3 +235,10 @@ class FeedbackAdmin(admin.ModelAdmin):
     list_filter = ("created_at",)
     search_fields = ("message", "user__email")  # needed for user autocomplete
     autocomplete_fields = ["user"]
+
+
+# ====================== DEAL ADMIN ======================
+@admin.register(Deal)
+class DealAdmin(admin.ModelAdmin):
+    list_display = ('title', 'seller', 'discount_type', 'final_price')
+    list_filter = ('discount_type', 'seller')

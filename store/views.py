@@ -7,8 +7,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import ValidationError
 from django.db.models import Avg, Count
 from django.core.exceptions import PermissionDenied
-from .models import Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct, Feedback
+from .models import Deal, Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct, Feedback
 from .serializers import (
+    DealSerializer,
     ProductSerializer,
     ProductCreateSerializer,
     CategorySerializer,
@@ -525,3 +526,31 @@ class FeedbackViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+        
+        
+#===========Deals ViewSet=================
+class DealViewSet(viewsets.ModelViewSet):
+    queryset = Deal.objects.all()
+    serializer_class = DealSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """Return deals for the authenticated seller or all deals for staff."""
+        user = self.request.user
+        if user.is_staff:
+            return Deal.objects.all()
+        return Deal.objects.filter(seller=user.seller_profile)
+
+    def perform_create(self, serializer):
+        """Auto-set the seller to the current user's SellerProfile."""
+        serializer.save(seller=self.request.user.seller_profile)
+
+    def destroy(self, request, *args, **kwargs):
+        """Prevent deletion if not the deal owner or admin."""
+        deal = self.get_object()
+        if request.user.seller_profile != deal.seller and not request.user.is_staff:
+            return Response(
+                {"detail": "You do not have permission to delete this deal."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)

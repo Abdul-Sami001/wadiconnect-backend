@@ -20,6 +20,7 @@ cart_router.register(r"items", views.CartItemViewSet, basename="cart-items")
 product_router = routers.NestedSimpleRouter(router, r"products", lookup="product")
 product_router.register(r"reviews", views.ReviewViewSet, basename="product-reviews")
 
+router.register(r'deals', views.DealViewSet, basename='deal')
 urlpatterns = [
     # Main API routes
     path("", include(router.urls)),
