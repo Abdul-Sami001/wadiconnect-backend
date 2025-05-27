@@ -533,10 +533,13 @@ class DealViewSet(viewsets.ModelViewSet):
     queryset = Deal.objects.all()
     serializer_class = DealSerializer
     permission_classes = [permissions.IsAuthenticated]
-
     def get_queryset(self):
-        """Return deals for the authenticated seller or all deals for staff."""
         user = self.request.user
+        # Allow everyone to view all deals
+        if self.request.method in permissions.SAFE_METHODS:
+            return Deal.objects.all()
+
+        # For write operations, restrict to owner or admin
         if user.is_staff:
             return Deal.objects.all()
         return Deal.objects.filter(seller=user.seller_profile)
