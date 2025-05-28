@@ -19,3 +19,5 @@ class CategoryPermission(BasePermission):
 
         # Allow DELETE/PUT/PATCH only for admin users
         return request.user.is_staff
+
+

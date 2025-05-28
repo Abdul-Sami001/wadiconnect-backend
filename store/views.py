@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from .models import Deal, Product, Categories, Order, OrderItem, Cart, CartItem, Review, FavouriteProduct, Feedback
 from .serializers import (
     DealSerializer,
+    ProductMinimalSerializer,
     ProductSerializer,
     ProductCreateSerializer,
     CategorySerializer,
@@ -17,6 +18,7 @@ from .serializers import (
     OrderItemSerializer,
     CartSerializer,
     CartItemSerializer,
+    ReviewHistorySerializer,
     ReviewSerializer,
     SellerProductSerializer,
     OrderStatusUpdateSerializer,
@@ -356,7 +358,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
-
+    lookup_field = 'id'  # Critical for nested routes
     def get_queryset(self):
         """Filter reviews by product or user"""
         queryset = Review.objects.select_related("user", "product")
@@ -380,15 +382,49 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(reviews, many=True)
         return Response(serializer.data)
 
-    # def perform_create(self, serializer):
-    #     """Auto-assign user and update product ratings"""
-    #     product = serializer.validated_data["product"]
-    #     serializer.save(user=self.request.user)
+    @action(detail=False, methods=['get'])
+    def to_give(self, request):
+        """List products eligible for review (delivered but not reviewed)"""
+        products = Review.get_reviewable_products(request.user)
+        serializer = ProductMinimalSerializer(products, many=True)
+        return Response(serializer.data)
 
-    #     # Update product rating stats
-    #     avg_rating = product.reviews.aggregate(Avg("rating"))["rating__avg"]
-    #     product.vendor.average_rating = avg_rating or 0
-    #     product.vendor.save()
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        """List all reviews given by the current user"""
+        queryset = self.get_queryset().select_related('product')
+        serializer = ReviewHistorySerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request, *args, **kwargs):
+        """Override creation to validate delivery status"""
+        product_id = request.data.get("product")
+        
+        # Check if product exists
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=404)
+
+        # Verify delivery
+        if not Order.objects.filter(
+            customer=request.user.customer_profile,
+            items__product=product,
+            delivery_status="DELIVERED"
+        ).exists():
+            return Response(
+                {"error": "You can only review delivered products"},
+                status=403
+            )
+
+        # Prevent duplicate reviews
+        if Review.objects.filter(user=request.user, product=product).exists():
+            return Response(
+                {"error": "You've already reviewed this product"},
+                status=400
+            )
+
+        return super().create(request, *args, **kwargs)
 
 
 class CartViewSet(

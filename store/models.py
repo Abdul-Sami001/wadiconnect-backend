@@ -268,7 +268,7 @@ class Review(models.Model):
         max_digits=2, decimal_places=1, null=True
     )  # Rating out of 5
     date = models.DateField(auto_now_add=True)  # Date when the review was created
-
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return f"{self.user.email} - {self.rating} Stars"
     def save(self, *args, **kwargs):
@@ -302,6 +302,33 @@ class Review(models.Model):
         avg_rating = all_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
         vendor.average_rating = round(avg_rating, 2)
         vendor.save()
+        
+    # This method returns products that the user can review 
+    @classmethod
+    def get_reviewable_products(cls, user):
+        """Returns products that user can review (delivered but not reviewed)"""
+        if not hasattr(user, 'customer_profile'):
+            return Product.objects.none()
+            
+        # Get delivered orders with their items
+        delivered_orders = Order.objects.filter(
+            customer=user.customer_profile,
+            delivery_status="DELIVERED"
+        ).prefetch_related('items')
+
+        # Get product IDs from all delivered orders
+        delivered_product_ids = set()
+        for order in delivered_orders:
+            delivered_product_ids.update(order.items.values_list('product_id', flat=True))
+
+        # Exclude already reviewed products
+        reviewed_product_ids = set(
+            cls.objects.filter(user=user).values_list('product_id', flat=True)
+        )
+
+        return Product.objects.filter(
+            id__in=(delivered_product_ids - reviewed_product_ids)
+        )
 
 class FavouriteProduct(models.Model):
     customer = models.ForeignKey(

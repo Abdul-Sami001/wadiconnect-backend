@@ -113,8 +113,8 @@ class ReviewSerializer(serializers.ModelSerializer):
     product_image = serializers.SerializerMethodField()
     class Meta:
         model = Review
-        fields = ["id", "user", "product", "product_name", "product_image", "comment", "rating", "date"]
-        read_only_fields = ["id", "user", "date", "product_name"]
+        fields = ["id", "user", "product","product_name", "product_image", "comment", "rating", "date"]
+        read_only_fields = ["id", "user", "date", "product_name", "product_image"]
         extra_kwargs = {"product": {"write_only": True}}
 
     def get_product_image(self, obj):
@@ -387,3 +387,20 @@ class DealSerializer(serializers.ModelSerializer):
         if not isinstance(value, datetime):
             raise ValidationError("valid_until must be a string or a datetime object.")
         return value
+    
+class ProductMinimalSerializer(serializers.ModelSerializer):
+    """For listing products that can be reviewed"""
+    image = serializers.SerializerMethodField()
+    class Meta:
+        model = Product
+        fields = ['id', 'title', 'image', 'unit_price']
+    def get_image(self, obj):
+        first_image = obj.images.first()
+        return first_image.image.url if first_image and first_image.image else None
+class ReviewHistorySerializer(serializers.ModelSerializer):
+    """For review history with product details"""
+    product = ProductMinimalSerializer()
+    
+    class Meta:
+        model = Review
+        fields = ['id', 'product', 'rating', 'comment', 'date']

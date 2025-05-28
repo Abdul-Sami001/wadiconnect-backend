@@ -9,9 +9,11 @@ router.register("products", views.ProductViewSet, basename="products")
 router.register("categories", views.CategoryViewSet, basename="categories")
 router.register("orders", views.OrderViewSet, basename="orders")
 router.register("carts", views.CartViewSet, basename="carts")
-#router.register("reviews", views.ReviewViewSet, basename="reviews")
+router.register("reviews", views.ReviewViewSet, basename="reviews")
 router.register(r"favourites", views.FavouriteProductViewSet, basename="favourites")
 router.register(r'feedback', views.FeedbackViewSet, basename='feedback')
+router.register(r'deals', views.DealViewSet, basename='deal')
+
 # Nested router for cart items
 cart_router = routers.NestedSimpleRouter(router, r"carts", lookup="cart")
 cart_router.register(r"items", views.CartItemViewSet, basename="cart-items")
@@ -20,7 +22,7 @@ cart_router.register(r"items", views.CartItemViewSet, basename="cart-items")
 product_router = routers.NestedSimpleRouter(router, r"products", lookup="product")
 product_router.register(r"reviews", views.ReviewViewSet, basename="product-reviews")
 
-router.register(r'deals', views.DealViewSet, basename='deal')
+
 urlpatterns = [
     # Main API routes
     path("", include(router.urls)),
