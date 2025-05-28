@@ -64,16 +64,19 @@ class ResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='user.role', read_only=True)
     class Meta:
         model = CustomerProfile
-        fields = ["id", "name", "phone", "address", "profile_picture", "created_at", "updated_at"]
+        fields = ["id", "name", "phone", "address", "role", "profile_picture", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]        
 
 class SellerProfileSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='user.role', read_only=True)
     class Meta:
         model = SellerProfile
         fields = [
             "id",
+            "role",
             "business_name",
              "average_rating", 
             "profile_picture",
